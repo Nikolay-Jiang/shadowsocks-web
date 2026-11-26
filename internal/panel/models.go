@@ -33,8 +33,11 @@ type User struct {
 	QuotaBytes  int64
 	ExpiresAt   int64
 	Note        string
-	CreatedAt   int64
-	UpdatedAt   int64
+	// DefaultPSK is only used while creating a user. GetUser/ListUsers do
+	// not load it; read it with UserDefaultPSK when assigning a node.
+	DefaultPSK string
+	CreatedAt  int64
+	UpdatedAt  int64
 }
 
 type Assignment struct {

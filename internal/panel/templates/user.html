@@ -22,12 +22,14 @@
   {{if .Data.Nodes}}
   <form method="post" action="/users/{{.Data.User.ID}}/assign" class="row">
     <input type="hidden" name="csrf" value="{{.CSRF}}">
-    <select name="node_id" style="max-width:360px">
+    <select name="node_id" style="max-width:300px">
       {{range .Data.Nodes}}<option value="{{.ID}}">{{.Name}} ({{.Address}}:{{.Port}})</option>{{end}}
     </select>
-    <button type="submit">Assign and generate PSK</button>
+    <input name="psk" placeholder="PSK (blank: user default or generate)" autocomplete="off" style="max-width:300px">
+    <button type="submit">Assign / update PSK</button>
   </form>
-  <p class="muted">Assigning an already assigned node rotates that node's user PSK and disconnects the old client.</p>
+  <p class="muted">A supplied PSK must match the node's method key length and must be unique within that node. Assigning an already assigned node rotates its user PSK and disconnects the old client.</p>
+  {{if .Data.HasDefaultPSK}}<p class="muted">This user has an initial default PSK. It is used when the PSK field is blank.</p>{{end}}
   {{else}}<p class="muted">Create a node first.</p>{{end}}
 </div>
 

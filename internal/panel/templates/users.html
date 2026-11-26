@@ -7,7 +7,9 @@
     <input type="hidden" name="csrf" value="{{.CSRF}}">
     <label>Display name</label>
     <input name="display_name" placeholder="Alice" required>
-    <p class="muted">The server ID is generated automatically and stays stable. Display names can be changed without touching the node.</p>
+    <label>Initial PSK (optional)</label>
+    <input name="psk" placeholder="Base64 PSK used when assigning nodes" autocomplete="off">
+    <p class="muted">Leave the PSK blank to generate one per node assignment. A supplied PSK is used as the default for this user and can be overridden per node. The server ID is generated automatically and stays stable.</p>
     <button type="submit">Create user</button>
   </form>
 </div>

@@ -28,12 +28,24 @@ The binaries are static (`CGO_ENABLED=0`) and need no runtime libraries.
 ```sh
 export SS_PANEL_MASTER_KEY="$(openssl rand -base64 32)"
 export SS_PANEL_PUBLIC_URL="https://panel.example.com"
+export SS_PANEL_NAME="shadowsocks-web"
 ./bin/ss-panel -listen 127.0.0.1:8080 -data-dir ./data -secure-cookie
 ```
 
 `SS_PANEL_PUBLIC_URL` is the `panel_url` written into the agent config shown
 on each node page. It can also be passed as `-public-url`. If neither is set,
 the panel derives it from the request (`Host` and `X-Forwarded-Proto`).
+
+`SS_PANEL_NAME` changes the name shown in the top-left corner and browser
+title. It can also be passed as `-name`. It defaults to `shadowsocks-web`.
+
+## PSK migration
+
+A user can be created with an optional initial PSK. When the user is assigned
+to a node, a PSK entered in the assignment form overrides it; otherwise the
+initial PSK is used; otherwise a new PSK is generated. This lets an existing
+`serverPSK:userPSK` client keep its connection information when moving to the
+panel.
 
 Without `SS_PANEL_MASTER_KEY`, the panel creates `data/master.key` with mode
 `0600`. Put the panel behind a TLS reverse proxy and use `-secure-cookie`.

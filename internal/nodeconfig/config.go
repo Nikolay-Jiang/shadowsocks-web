@@ -95,6 +95,19 @@ func ValidatePSK(method, psk string) error {
 	return nil
 }
 
+// ValidatePortablePSK checks a PSK before a node (and therefore a method) is
+// known. It accepts either supported AES-2022 key size.
+func ValidatePortablePSK(psk string) error {
+	raw, err := base64.StdEncoding.DecodeString(psk)
+	if err != nil {
+		return fmt.Errorf("psk is not valid base64: %w", err)
+	}
+	if len(raw) != 16 && len(raw) != 32 {
+		return fmt.Errorf("psk decodes to %d bytes; use a 16-byte or 32-byte key", len(raw))
+	}
+	return nil
+}
+
 // Validate checks the fields that would make ss-server fail or silently
 // ignore a user. It does not require a control socket; the agent does.
 func (c Config) Validate() error {

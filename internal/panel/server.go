@@ -24,6 +24,7 @@ type Config struct {
 	DataDir      string
 	DBPath       string
 	PublicURL    string
+	Name         string
 	CookieSecure bool
 }
 
@@ -52,6 +53,9 @@ func New(cfg Config) (*Server, error) {
 	}
 	if cfg.DBPath == "" {
 		cfg.DBPath = filepath.Join(cfg.DataDir, "panel.db")
+	}
+	if cfg.Name == "" {
+		cfg.Name = "shadowsocks-web"
 	}
 	crypt, err := OpenCrypt(cfg.DataDir)
 	if err != nil {
@@ -141,11 +145,15 @@ type pageData struct {
 	Data     any
 	Version  string
 	PanelURL string
+	Brand    string
 }
 
 func (s *Server) render(w http.ResponseWriter, r *http.Request, page string, data pageData) {
+	if data.Brand == "" {
+		data.Brand = s.cfg.Name
+	}
 	if data.Title == "" {
-		data.Title = "shadowsocks-web"
+		data.Title = data.Brand
 	}
 	tpl := s.pages[page]
 	if tpl == nil {
@@ -238,6 +246,7 @@ func (s *Server) pageFor(w http.ResponseWriter, r *http.Request, name string, da
 	data.CSRF = sess.CSRF
 	data.Version = protocol.Version
 	data.PanelURL = s.publicURL(r)
+	data.Brand = s.cfg.Name
 	s.render(w, r, name, data)
 }
 

@@ -21,6 +21,7 @@ func main() {
 	dataDir := flag.String("data-dir", "data", "data directory")
 	dbPath := flag.String("db", "", "SQLite database path (default data-dir/panel.db)")
 	publicURL := flag.String("public-url", os.Getenv("SS_PANEL_PUBLIC_URL"), "public panel URL shown in agent config (for example https://panel.example.com)")
+	name := flag.String("name", os.Getenv("SS_PANEL_NAME"), "panel display name")
 	secureCookie := flag.Bool("secure-cookie", false, "mark the session cookie Secure (enable behind HTTPS)")
 	showVersion := flag.Bool("version", false, "print version and exit")
 	flag.Parse()
@@ -38,6 +39,7 @@ func main() {
 		DataDir:      *dataDir,
 		DBPath:       *dbPath,
 		PublicURL:    *publicURL,
+		Name:         *name,
 		CookieSecure: *secureCookie,
 	})
 	if err != nil {

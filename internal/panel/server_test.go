@@ -13,6 +13,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Nikolay-Jiang/shadowsocks-web/internal/nodeconfig"
 	"github.com/Nikolay-Jiang/shadowsocks-web/internal/protocol"
 )
 
@@ -22,7 +23,7 @@ var tokenPattern = regexp.MustCompile(`(?s)Agent token.*?<code>([0-9a-f]{64})</c
 func newTestPanel(t *testing.T) (*Server, *httptest.Server, *http.Client) {
 	t.Helper()
 	dir := t.TempDir()
-	s, err := New(Config{Listen: "127.0.0.1:0", DataDir: dir, PublicURL: "https://panel.example.com"})
+	s, err := New(Config{Listen: "127.0.0.1:0", DataDir: dir, PublicURL: "https://panel.example.com", Name: "Test Panel"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,7 +83,7 @@ func TestPanelFlow(t *testing.T) {
 	}
 	if code, body := postForm(t, client, ts.URL+"/setup", url.Values{
 		"username": {"admin"}, "password": {"password123"},
-	}); code != http.StatusOK || !strings.Contains(body, "Dashboard") {
+	}); code != http.StatusOK || !strings.Contains(body, "Dashboard") || !strings.Contains(body, "Test Panel") {
 		t.Fatalf("setup failed: %d %s", code, body)
 	}
 
@@ -153,9 +154,14 @@ func TestPanelFlow(t *testing.T) {
 
 	_, usersPage := getBody(t, client, ts.URL+"/users")
 	userCSRF := csrf(t, usersPage)
+	userPSK, err := nodeconfig.GeneratePSK(node.Method)
+	if err != nil {
+		t.Fatal(err)
+	}
 	code, userBody := postForm(t, client, ts.URL+"/users", url.Values{
 		"csrf":         {userCSRF},
 		"display_name": {"alice"},
+		"psk":          {userPSK},
 	})
 	if code != http.StatusOK || !strings.Contains(userBody, "alice") {
 		t.Fatalf("create user: %d %s", code, userBody)
@@ -174,6 +180,13 @@ func TestPanelFlow(t *testing.T) {
 	})
 	if code != http.StatusOK || !strings.Contains(assignBody, "ss://") {
 		t.Fatalf("assign: %d %s", code, assignBody)
+	}
+	assignment, err := s.store.GetAssignment(t.Context(), node.ID, user.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if assignment.PSK != userPSK {
+		t.Fatalf("initial PSK was not used: got %q want %q", assignment.PSK, userPSK)
 	}
 
 	req, _ = http.NewRequest(http.MethodGet, ts.URL+"/api/v1/agent/sync?revision="+itoa(first.Revision), nil)
@@ -211,7 +224,7 @@ func TestPanelFlow(t *testing.T) {
 	if reportResp.StatusCode != http.StatusNoContent {
 		t.Fatalf("report status: %d", reportResp.StatusCode)
 	}
-	assignment, err := s.store.GetAssignment(t.Context(), node.ID, user.ID)
+	assignment, err = s.store.GetAssignment(t.Context(), node.ID, user.ID)
 	if err != nil {
 		t.Fatal(err)
 	}

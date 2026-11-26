@@ -3,6 +3,7 @@ package panel
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"net/http"
 	"sort"
@@ -43,11 +44,12 @@ type assignmentView struct {
 }
 
 type userView struct {
-	User        User
-	Nodes       []Node
-	Assignments []assignmentView
-	TotalTx     uint64
-	TotalRx     uint64
+	User          User
+	Nodes         []Node
+	Assignments   []assignmentView
+	TotalTx       uint64
+	TotalRx       uint64
+	HasDefaultPSK bool
 }
 
 func (s *Server) dashboard(w http.ResponseWriter, r *http.Request) {
@@ -212,9 +214,16 @@ func (s *Server) userCreate(w http.ResponseWriter, r *http.Request) {
 	if name == "" {
 		name = "user"
 	}
-	user, err := s.store.CreateUser(r.Context(), User{DisplayName: name, Enabled: true})
+	psk := strings.TrimSpace(r.FormValue("psk"))
+	if psk != "" {
+		if err := nodeconfig.ValidatePortablePSK(psk); err != nil {
+			s.usersError(w, r, "Create user", err)
+			return
+		}
+	}
+	user, err := s.store.CreateUser(r.Context(), User{DisplayName: name, Enabled: true, DefaultPSK: psk})
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		s.usersError(w, r, "Create user", err)
 		return
 	}
 	s.audit(r, sessionFrom(r), "create", "user", user.ID, user.DisplayName)
@@ -231,6 +240,10 @@ func (s *Server) userPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) showUser(w http.ResponseWriter, r *http.Request, user User, message string) {
+	s.renderUser(w, r, user, message, "")
+}
+
+func (s *Server) renderUser(w http.ResponseWriter, r *http.Request, user User, flash, errorText string) {
 	nodes, err := s.store.ListNodes(r.Context())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -261,9 +274,16 @@ func (s *Server) showUser(w http.ResponseWriter, r *http.Request, user User, mes
 		totalRx += a.TotalRx
 	}
 	sort.Slice(views, func(i, j int) bool { return views[i].Node.Name < views[j].Node.Name })
+	defaultPSK, _ := s.store.UserDefaultPSK(r.Context(), user.ID)
 	s.pageFor(w, r, "user", pageData{Title: user.DisplayName, Data: userView{
 		User: user, Nodes: nodes, Assignments: views, TotalTx: totalTx, TotalRx: totalRx,
-	}, Flash: message})
+		HasDefaultPSK: defaultPSK != "",
+	}, Flash: flash, Error: errorText})
+}
+
+func (s *Server) usersError(w http.ResponseWriter, r *http.Request, title string, err error) {
+	users, _ := s.store.ListUsers(r.Context())
+	s.pageFor(w, r, "users", pageData{Title: title, Error: err.Error(), Data: usersView{Users: users}})
 }
 
 func (s *Server) userUpdate(w http.ResponseWriter, r *http.Request) {
@@ -334,10 +354,34 @@ func (s *Server) userAssign(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	if _, err := s.store.GetUser(r.Context(), userID); err != nil {
+	user, err := s.store.GetUser(r.Context(), userID)
+	if err != nil {
 		http.NotFound(w, r)
 		return
 	}
+	psk := strings.TrimSpace(r.FormValue("psk"))
+	if psk == "" {
+		psk, err = s.store.UserDefaultPSK(r.Context(), userID)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			s.renderUser(w, r, user, "", fmt.Sprintf("assign: %v", err))
+			return
+		}
+	}
+	if psk != "" {
+		if err := validateAssignmentPSK(node, psk); err != nil {
+			s.renderUser(w, r, user, "", fmt.Sprintf("assign: %v", err))
+			return
+		}
+		if err := s.store.AssignUser(r.Context(), nodeID, userID, psk); err != nil {
+			s.renderUser(w, r, user, "", fmt.Sprintf("assign: %v", err))
+			return
+		}
+		_ = s.store.IncrementNodeRevision(r.Context(), nodeID)
+		s.audit(r, sessionFrom(r), "assign", "user", userID, nodeID)
+		redirect(w, r, "/users/"+userID)
+		return
+	}
+
 	var lastErr error
 	for i := 0; i < 5; i++ {
 		psk, err := nodeconfig.GeneratePSK(node.Method)
@@ -353,7 +397,14 @@ func (s *Server) userAssign(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	s.pageFor(w, r, "users", pageData{Title: "Assign user", Error: fmt.Sprintf("assign: %v", lastErr), Data: usersView{}})
+	s.renderUser(w, r, user, "", fmt.Sprintf("assign: %v", lastErr))
+}
+
+func validateAssignmentPSK(node Node, psk string) error {
+	if psk == node.ServerPSK {
+		return errors.New("user PSK must not equal the node server PSK")
+	}
+	return nodeconfig.ValidatePSK(node.Method, psk)
 }
 
 func (s *Server) userUnassign(w http.ResponseWriter, r *http.Request) {

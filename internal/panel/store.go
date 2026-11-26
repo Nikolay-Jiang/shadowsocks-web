@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"database/sql"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -56,6 +57,7 @@ CREATE TABLE IF NOT EXISTS users (
     quota_bytes INTEGER NOT NULL DEFAULT 0,
     expires_at INTEGER NOT NULL DEFAULT 0,
     note TEXT NOT NULL DEFAULT '',
+    default_psk_enc BLOB,
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL
 );
@@ -122,10 +124,45 @@ func OpenStore(path string, crypt *Crypt) (*Store, error) {
 		_ = db.Close()
 		return nil, err
 	}
+	if err := ensureUserDefaultPSKColumn(db); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
 	return &Store{db: db, crypt: crypt}, nil
 }
 
 func (s *Store) Close() error { return s.db.Close() }
+
+// ensureUserDefaultPSKColumn upgrades a database created before the optional
+// default PSK field existed.
+func ensureUserDefaultPSKColumn(db *sql.DB) error {
+	rows, err := db.Query(`PRAGMA table_info(users)`)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	found := false
+	for rows.Next() {
+		var cid int
+		var name, typ string
+		var notNull, pk int
+		var dflt any
+		if err := rows.Scan(&cid, &name, &typ, &notNull, &dflt, &pk); err != nil {
+			return err
+		}
+		if name == "default_psk_enc" {
+			found = true
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	if found {
+		return nil
+	}
+	_, err = db.Exec(`ALTER TABLE users ADD COLUMN default_psk_enc BLOB`)
+	return err
+}
 
 func now() int64 { return time.Now().Unix() }
 
@@ -285,13 +322,40 @@ func (s *Store) CreateUser(ctx context.Context, u User) (User, error) {
 		u.ID = id
 	}
 	ts := now()
-	_, err := s.db.ExecContext(ctx, `INSERT INTO users(id,display_name,enabled,quota_bytes,expires_at,note,created_at,updated_at)
-        VALUES (?,?,?,?,?,?,?,?)`, u.ID, u.DisplayName, boolInt(u.Enabled), u.QuotaBytes, u.ExpiresAt, u.Note, ts, ts)
+	var defaultPSK []byte
+	if u.DefaultPSK != "" {
+		var err error
+		defaultPSK, err = s.crypt.Encrypt([]byte(u.DefaultPSK))
+		if err != nil {
+			return User{}, err
+		}
+	}
+	_, err := s.db.ExecContext(ctx, `INSERT INTO users(id,display_name,enabled,quota_bytes,expires_at,note,default_psk_enc,created_at,updated_at)
+        VALUES (?,?,?,?,?,?,?,?,?)`, u.ID, u.DisplayName, boolInt(u.Enabled), u.QuotaBytes, u.ExpiresAt, u.Note, defaultPSK, ts, ts)
 	if err != nil {
 		return User{}, err
 	}
 	u.CreatedAt, u.UpdatedAt = ts, ts
 	return u, nil
+}
+
+func (s *Store) UserDefaultPSK(ctx context.Context, id string) (string, error) {
+	var enc []byte
+	err := s.db.QueryRowContext(ctx, `SELECT default_psk_enc FROM users WHERE id=?`, id).Scan(&enc)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", sql.ErrNoRows
+	}
+	if err != nil {
+		return "", err
+	}
+	if len(enc) == 0 {
+		return "", nil
+	}
+	plain, err := s.crypt.Decrypt(enc)
+	if err != nil {
+		return "", err
+	}
+	return string(plain), nil
 }
 
 func (s *Store) GetUser(ctx context.Context, id string) (User, error) {

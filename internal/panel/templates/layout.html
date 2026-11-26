@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{{.Title}} - shadowsocks-web</title>
+<title>{{.Title}} - {{.Brand}}</title>
 <style>
 :root { color-scheme: light dark; --bg:#f6f7f9; --fg:#1f2328; --muted:#656d76; --card:#fff; --line:#d0d7de; --accent:#0969da; --ok:#1a7f37; --bad:#cf222e; }
 @media (prefers-color-scheme: dark) { :root { --bg:#0d1117; --fg:#e6edf3; --muted:#8b949e; --card:#161b22; --line:#30363d; --accent:#4493f8; --ok:#3fb950; --bad:#f85149; } }
@@ -51,7 +51,7 @@ pre { background:var(--bg); border:1px solid var(--line); border-radius:8px; pad
 <body>
 {{if .Admin}}
 <nav>
-  <span class="brand">shadowsocks-web</span>
+  <span class="brand">{{.Brand}}</span>
   <a href="/">Dashboard</a>
   <a href="/nodes">Nodes</a>
   <a href="/users">Users</a>

@@ -31,6 +31,8 @@ type Agent struct {
 	mu      sync.Mutex
 	state   state
 	version string
+	status  string
+	lastErr string
 }
 
 func New(cfg Config) (*Agent, error) {
@@ -121,6 +123,7 @@ func (a *Agent) syncLoop(ctx context.Context) {
 		}
 		if err := a.apply(ctx, resp); err != nil {
 			log.Printf("apply revision %d: %v", resp.Revision, err)
+			a.setStatus("error", err.Error())
 			a.report(ctx, resp.Revision, "error", err.Error())
 			if !sleep(ctx, retryDelay) {
 				return
@@ -129,6 +132,8 @@ func (a *Agent) syncLoop(ctx context.Context) {
 		}
 		a.mu.Lock()
 		a.state.Revision = resp.Revision
+		a.status = "applied"
+		a.lastErr = ""
 		err = saveState(a.cfg.statePath(), a.state)
 		a.mu.Unlock()
 		if err != nil {
@@ -149,11 +154,16 @@ func (a *Agent) reportLoop(ctx context.Context) {
 			a.mu.Lock()
 			token := a.state.AgentToken
 			revision := a.state.Revision
+			status := a.status
+			message := a.lastErr
 			a.mu.Unlock()
 			if token == "" {
 				continue
 			}
-			a.report(ctx, revision, "applied", "")
+			if status == "" {
+				status = "applied"
+			}
+			a.report(ctx, revision, status, message)
 		}
 	}
 }
@@ -265,6 +275,13 @@ func (a *Agent) restore(old []byte, oldErr error) {
 	if err := writeFileAtomic(a.cfg.ServerConfig, old, 0o600); err != nil {
 		log.Printf("restore config: %v", err)
 	}
+}
+
+func (a *Agent) setStatus(status, message string) {
+	a.mu.Lock()
+	a.status = status
+	a.lastErr = message
+	a.mu.Unlock()
 }
 
 func (a *Agent) report(ctx context.Context, revision int64, status, message string) {

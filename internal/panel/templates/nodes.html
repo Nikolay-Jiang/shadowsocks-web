@@ -1,0 +1,58 @@
+{{define "content"}}
+<h1>Nodes</h1>
+
+<div class="card">
+  <h2>Add node</h2>
+  <form method="post" action="/nodes">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <div class="formgrid">
+      <div>
+        <label>Name</label>
+        <input name="name" placeholder="hk-1" required>
+      </div>
+      <div>
+        <label>Client address</label>
+        <input name="address" placeholder="hk1.example.com" required>
+      </div>
+      <div>
+        <label>Port</label>
+        <input name="port" type="number" min="1" max="65535" value="8388" required>
+      </div>
+      <div>
+        <label>Method</label>
+        <select name="method">
+          <option value="2022-blake3-aes-256-gcm">2022-blake3-aes-256-gcm</option>
+          <option value="2022-blake3-aes-128-gcm">2022-blake3-aes-128-gcm</option>
+        </select>
+      </div>
+      <div>
+        <label>Server PSK (blank generates one)</label>
+        <input name="server_psk" placeholder="base64 pre-shared key">
+      </div>
+    </div>
+    <label class="check"><input type="checkbox" name="require_identity" checked> Require a SIP023 user identity (disable anonymous fallback)</label>
+    <label class="check"><input type="checkbox" name="access_log"> Log authenticated connections</label>
+    <button type="submit">Create node</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Managed nodes</h2>
+  {{if .Data.Nodes}}
+  <table>
+    <thead><tr><th>Name</th><th>Address</th><th>Status</th><th>Users</th><th>Revision</th></tr></thead>
+    <tbody>
+    {{range .Data.Nodes}}
+      <tr>
+        <td><a href="/nodes/{{.ID}}">{{.Name}}</a></td>
+        <td><code>{{.Address}}:{{.Port}}</code><br><span class="muted">{{.Method}}</span></td>
+        <td><span class="{{statusClass .Status}}">{{.Status}}</span></td>
+        <td><a href="/users">manage</a></td>
+        <td>{{.Revision}}</td>
+      </tr>
+    {{end}}
+    </tbody>
+  </table>
+  {{else}}<p class="muted">No nodes yet.</p>{{end}}
+</div>
+{{end}}

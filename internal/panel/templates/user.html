@@ -1,0 +1,61 @@
+{{define "content"}}
+<h1>{{.Data.User.DisplayName}}</h1>
+<p class="muted">Server ID <code>{{.Data.User.ID}}</code> · total {{bytes .Data.TotalTx}} TX / {{bytes .Data.TotalRx}} RX</p>
+
+<div class="card">
+  <h2>Settings</h2>
+  <form method="post" action="/users/{{.Data.User.ID}}">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <div class="formgrid">
+      <div><label>Display name</label><input name="display_name" value="{{.Data.User.DisplayName}}" required></div>
+      <div><label>Quota in bytes (0 = unlimited)</label><input name="quota_bytes" type="number" min="0" value="{{.Data.User.QuotaBytes}}"></div>
+      <div><label>Expires on (YYYY-MM-DD, blank = never)</label><input name="expires_at" type="date" value="{{dateInput .Data.User.ExpiresAt}}"></div>
+      <div><label>Note</label><input name="note" value="{{.Data.User.Note}}"></div>
+    </div>
+    <label class="check"><input type="checkbox" name="enabled" {{if .Data.User.Enabled}}checked{{end}}> Enabled</label>
+    <button type="submit">Save user</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Assign to node</h2>
+  {{if .Data.Nodes}}
+  <form method="post" action="/users/{{.Data.User.ID}}/assign" class="row">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <select name="node_id" style="max-width:360px">
+      {{range .Data.Nodes}}<option value="{{.ID}}">{{.Name}} ({{.Address}}:{{.Port}})</option>{{end}}
+    </select>
+    <button type="submit">Assign and generate PSK</button>
+  </form>
+  <p class="muted">Assigning an already assigned node rotates that node's user PSK and disconnects the old client.</p>
+  {{else}}<p class="muted">Create a node first.</p>{{end}}
+</div>
+
+<div class="card">
+  <h2>Client links</h2>
+  {{if .Data.Assignments}}
+    {{range .Data.Assignments}}
+    <div class="card" style="margin:0 0 14px">
+      <div class="row" style="justify-content:space-between">
+        <strong><a href="/nodes/{{.Node.ID}}">{{.Node.Name}}</a></strong>
+        <form method="post" action="/users/{{$.Data.User.ID}}/unassign" onsubmit="return confirm('Remove this assignment?')">
+          <input type="hidden" name="csrf" value="{{$.CSRF}}">
+          <input type="hidden" name="node_id" value="{{.NodeID}}">
+          <button class="danger" type="submit">Remove</button>
+        </form>
+      </div>
+      <p class="muted">{{.Node.Method}} · {{.Node.Address}}:{{.Node.Port}} · {{bytes .TotalTx}} TX / {{bytes .TotalRx}} RX</p>
+      <input class="linkbox" readonly value="{{.URI}}" onclick="this.select()">
+    </div>
+    {{end}}
+  {{else}}<p class="muted">This user has no node assignments.</p>{{end}}
+</div>
+
+<div class="card">
+  <h2>Delete</h2>
+  <form method="post" action="/users/{{.Data.User.ID}}/delete" onsubmit="return confirm('Delete this user and all assignments?')">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <button class="danger" type="submit">Delete user</button>
+  </form>
+</div>
+{{end}}

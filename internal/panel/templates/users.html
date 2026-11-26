@@ -1,0 +1,34 @@
+{{define "content"}}
+<h1>Users</h1>
+
+<div class="card">
+  <h2>Add user</h2>
+  <form method="post" action="/users">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <label>Display name</label>
+    <input name="display_name" placeholder="Alice" required>
+    <p class="muted">The server ID is generated automatically and stays stable. Display names can be changed without touching the node.</p>
+    <button type="submit">Create user</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Managed users</h2>
+  {{if .Data.Users}}
+  <table>
+    <thead><tr><th>ID</th><th>Name</th><th>Enabled</th><th>Quota</th><th>Expires</th></tr></thead>
+    <tbody>
+    {{range .Data.Users}}
+      <tr>
+        <td><code>{{.ID}}</code></td>
+        <td><a href="/users/{{.ID}}">{{.DisplayName}}</a></td>
+        <td>{{if .Enabled}}<span class="ok">yes</span>{{else}}<span class="muted">no</span>{{end}}</td>
+        <td>{{if .QuotaBytes}}{{bytes .QuotaBytes}}{{else}}unlimited{{end}}</td>
+        <td>{{date .ExpiresAt}}</td>
+      </tr>
+    {{end}}
+    </tbody>
+  </table>
+  {{else}}<p class="muted">No users yet.</p>{{end}}
+</div>
+{{end}}

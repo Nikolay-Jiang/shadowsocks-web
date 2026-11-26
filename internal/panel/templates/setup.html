@@ -1,0 +1,13 @@
+{{define "content"}}
+<div class="card" style="max-width:460px;margin:10vh auto 0">
+  <h1>Create administrator</h1>
+  <p class="muted">This is the first run. The account is stored locally in the panel database.</p>
+  <form method="post" action="/setup">
+    <label for="username">Username</label>
+    <input id="username" name="username" autocomplete="username" required autofocus>
+    <label for="password">Password (at least 8 characters)</label>
+    <input id="password" name="password" type="password" autocomplete="new-password" minlength="8" required>
+    <div style="margin-top:16px"><button type="submit">Create account</button></div>
+  </form>
+</div>
+{{end}}

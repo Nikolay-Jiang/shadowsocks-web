@@ -1,0 +1,15 @@
+{{define "content"}}
+<h1>Audit</h1>
+<div class="card">
+  {{if .Data}}
+  <table>
+    <thead><tr><th>Time</th><th>Actor</th><th>Action</th><th>Target</th><th>Detail</th><th>IP</th></tr></thead>
+    <tbody>
+    {{range .Data}}
+      <tr><td>{{date .TS}}</td><td>{{.Actor}}</td><td>{{.Action}}</td><td>{{.TargetType}} {{.TargetID}}</td><td>{{.Detail}}</td><td>{{.RemoteIP}}</td></tr>
+    {{end}}
+    </tbody>
+  </table>
+  {{else}}<p class="muted">No audit entries.</p>{{end}}
+</div>
+{{end}}

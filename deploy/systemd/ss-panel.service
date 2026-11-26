@@ -1,0 +1,22 @@
+[Unit]
+Description=shadowsocks-web panel
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=shadowsocks-web
+Group=shadowsocks-web
+WorkingDirectory=/var/lib/shadowsocks-web
+EnvironmentFile=-/etc/shadowsocks-web/panel.env
+ExecStart=/usr/local/bin/ss-panel -listen 127.0.0.1:8080 -data-dir /var/lib/shadowsocks-web -secure-cookie
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/shadowsocks-web
+
+[Install]
+WantedBy=multi-user.target

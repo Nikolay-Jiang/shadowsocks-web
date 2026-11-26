@@ -1,0 +1,23 @@
+[Unit]
+Description=shadowsocks-c node agent
+Documentation=https://github.com/Nikolay-Jiang/shadowsocks-web
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=shadowsocks
+Group=shadowsocks
+ExecStart=/usr/local/bin/ss-agent -c /etc/shadowsocks-c/agent.json
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/etc/shadowsocks-c /var/lib/shadowsocks-c /run/shadowsocks-c
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+
+[Install]
+WantedBy=multi-user.target

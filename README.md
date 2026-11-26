@@ -27,8 +27,13 @@ The binaries are static (`CGO_ENABLED=0`) and need no runtime libraries.
 
 ```sh
 export SS_PANEL_MASTER_KEY="$(openssl rand -base64 32)"
+export SS_PANEL_PUBLIC_URL="https://panel.example.com"
 ./bin/ss-panel -listen 127.0.0.1:8080 -data-dir ./data -secure-cookie
 ```
+
+`SS_PANEL_PUBLIC_URL` is the `panel_url` written into the agent config shown
+on each node page. It can also be passed as `-public-url`. If neither is set,
+the panel derives it from the request (`Host` and `X-Forwarded-Proto`).
 
 Without `SS_PANEL_MASTER_KEY`, the panel creates `data/master.key` with mode
 `0600`. Put the panel behind a TLS reverse proxy and use `-secure-cookie`.

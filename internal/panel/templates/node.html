@@ -34,10 +34,13 @@
 </div>
 
 <div class="card">
-  <h2>Agent</h2>
+  <div class="row" style="justify-content:space-between">
+    <h2>Agent</h2>
+    <button class="secondary" type="button" onclick="copyText('agent-config', this)">Copy config</button>
+  </div>
   <p>Run <code>ss-agent</code> as the same user as <code>ss-server</code>. It writes <code>config.json</code>, supervises the process and reports traffic.</p>
-  <pre>{
-  "panel_url": "https://panel.example.com",
+  <pre id="agent-config">{
+  "panel_url": "{{.PanelURL}}",
   "enrollment_token": "{{if .Data.Token}}{{.Data.Token}}{{else}}&lt;create a new token&gt;{{end}}",
   "node_name": "{{.Data.Node.Name}}",
   "server_binary": "/usr/local/bin/ss-server",

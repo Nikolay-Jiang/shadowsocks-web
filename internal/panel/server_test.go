@@ -22,7 +22,7 @@ var tokenPattern = regexp.MustCompile(`(?s)Agent token.*?<code>([0-9a-f]{64})</c
 func newTestPanel(t *testing.T) (*Server, *httptest.Server, *http.Client) {
 	t.Helper()
 	dir := t.TempDir()
-	s, err := New(Config{Listen: "127.0.0.1:0", DataDir: dir})
+	s, err := New(Config{Listen: "127.0.0.1:0", DataDir: dir, PublicURL: "https://panel.example.com"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -98,6 +98,9 @@ func TestPanelFlow(t *testing.T) {
 	})
 	if code != http.StatusOK {
 		t.Fatalf("create node: %d %s", code, nodeBody)
+	}
+	if !strings.Contains(nodeBody, "https://panel.example.com") || !strings.Contains(nodeBody, "Copy config") {
+		t.Fatalf("agent config missing public URL or copy button")
 	}
 	tokenMatch := tokenPattern.FindStringSubmatch(nodeBody)
 	if len(tokenMatch) != 2 {
@@ -219,4 +222,18 @@ func TestPanelFlow(t *testing.T) {
 
 func itoa(v int64) string {
 	return strconv.FormatInt(v, 10)
+}
+
+func TestPublicURL(t *testing.T) {
+	s := &Server{}
+	req := httptest.NewRequest(http.MethodGet, "http://internal:8080/nodes", nil)
+	req.Host = "panel.example.com"
+	req.Header.Set("X-Forwarded-Proto", "https")
+	if got := s.publicURL(req); got != "https://panel.example.com" {
+		t.Fatalf("derived URL = %q", got)
+	}
+	s.cfg.PublicURL = "https://configured.example.com/"
+	if got := s.publicURL(req); got != "https://configured.example.com" {
+		t.Fatalf("configured URL = %q", got)
+	}
 }

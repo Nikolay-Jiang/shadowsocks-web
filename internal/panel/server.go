@@ -23,6 +23,7 @@ type Config struct {
 	Listen       string
 	DataDir      string
 	DBPath       string
+	PublicURL    string
 	CookieSecure bool
 }
 
@@ -132,13 +133,14 @@ func (s *Server) routes() {
 }
 
 type pageData struct {
-	Title   string
-	Admin   string
-	CSRF    string
-	Flash   string
-	Error   string
-	Data    any
-	Version string
+	Title    string
+	Admin    string
+	CSRF     string
+	Flash    string
+	Error    string
+	Data     any
+	Version  string
+	PanelURL string
 }
 
 func (s *Server) render(w http.ResponseWriter, r *http.Request, page string, data pageData) {
@@ -235,7 +237,25 @@ func (s *Server) pageFor(w http.ResponseWriter, r *http.Request, name string, da
 	data.Admin = sess.Username
 	data.CSRF = sess.CSRF
 	data.Version = protocol.Version
+	data.PanelURL = s.publicURL(r)
 	s.render(w, r, name, data)
+}
+
+// publicURL is what agents should put in panel_url. Configure it explicitly
+// with -public-url or SS_PANEL_PUBLIC_URL; otherwise derive it from the
+// request, including the usual reverse-proxy scheme header.
+func (s *Server) publicURL(r *http.Request) string {
+	if configured := strings.TrimRight(strings.TrimSpace(s.cfg.PublicURL), "/"); configured != "" {
+		return configured
+	}
+	scheme := "http"
+	if r.TLS != nil {
+		scheme = "https"
+	}
+	if forwarded := strings.ToLower(strings.TrimSpace(r.Header.Get("X-Forwarded-Proto"))); forwarded == "http" || forwarded == "https" {
+		scheme = forwarded
+	}
+	return scheme + "://" + r.Host
 }
 
 func redirect(w http.ResponseWriter, r *http.Request, path string) {

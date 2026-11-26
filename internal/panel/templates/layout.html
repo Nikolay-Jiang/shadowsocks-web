@@ -69,5 +69,32 @@ pre { background:var(--bg); border:1px solid var(--line); border-radius:8px; pad
 {{if .Flash}}<div class="notice flash">{{.Flash}}</div>{{end}}
 {{template "content" .}}
 </main>
+<script>
+function copyText(id, button) {
+  const source = document.getElementById(id);
+  if (!source) return;
+  const text = source.textContent;
+  const done = () => {
+    const old = button.textContent;
+    button.textContent = "Copied";
+    setTimeout(() => { button.textContent = old; }, 1200);
+  };
+  const fallback = () => {
+    const area = document.createElement("textarea");
+    area.value = text;
+    area.style.position = "fixed";
+    area.style.opacity = "0";
+    document.body.appendChild(area);
+    area.select();
+    try { document.execCommand("copy"); done(); } catch (_) {}
+    document.body.removeChild(area);
+  };
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(done).catch(fallback);
+  } else {
+    fallback();
+  }
+}
+</script>
 </body>
 </html>{{end}}

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"os/signal"
 	"syscall"
 	"time"
@@ -19,6 +20,7 @@ func main() {
 	listen := flag.String("listen", "127.0.0.1:8080", "HTTP listen address")
 	dataDir := flag.String("data-dir", "data", "data directory")
 	dbPath := flag.String("db", "", "SQLite database path (default data-dir/panel.db)")
+	publicURL := flag.String("public-url", os.Getenv("SS_PANEL_PUBLIC_URL"), "public panel URL shown in agent config (for example https://panel.example.com)")
 	secureCookie := flag.Bool("secure-cookie", false, "mark the session cookie Secure (enable behind HTTPS)")
 	showVersion := flag.Bool("version", false, "print version and exit")
 	flag.Parse()
@@ -35,6 +37,7 @@ func main() {
 		Listen:       *listen,
 		DataDir:      *dataDir,
 		DBPath:       *dbPath,
+		PublicURL:    *publicURL,
 		CookieSecure: *secureCookie,
 	})
 	if err != nil {

@@ -72,8 +72,8 @@ func TestValidate(t *testing.T) {
 
 	empty := c
 	empty.Users = map[string]string{}
-	if err := empty.Validate(); err == nil || !strings.Contains(err.Error(), "at least one user") {
-		t.Fatalf("require_identity with no users: %v", err)
+	if err := empty.Validate(); err != nil {
+		t.Fatalf("require_identity with no users should be allowed: %v", err)
 	}
 }
 

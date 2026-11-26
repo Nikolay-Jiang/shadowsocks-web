@@ -137,9 +137,6 @@ func (c Config) Validate() error {
 		}
 		seen[psk] = id
 	}
-	if c.RequireIdentity && len(c.Users) == 0 {
-		return errors.New("require_identity needs at least one user")
-	}
 	return nil
 }
 

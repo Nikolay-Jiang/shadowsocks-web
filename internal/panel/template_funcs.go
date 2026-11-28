@@ -2,6 +2,7 @@ package panel
 
 import (
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -30,6 +31,17 @@ func dateInput(v int64) string {
 		return ""
 	}
 	return time.Unix(v, 0).UTC().Format("2006-01-02")
+}
+
+func levelClass(level string) string {
+	switch strings.ToUpper(level) {
+	case "ERROR", "FATAL":
+		return "bad"
+	case "WARN":
+		return "warn"
+	default:
+		return "muted"
+	}
 }
 
 func statusClass(status string) string {

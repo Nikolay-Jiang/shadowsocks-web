@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Nikolay-Jiang/shadowsocks-web/internal/nodeconfig"
 	"github.com/Nikolay-Jiang/shadowsocks-web/internal/protocol"
@@ -181,6 +182,14 @@ func TestPanelFlow(t *testing.T) {
 	if code != http.StatusOK || !strings.Contains(assignBody, "ss://") {
 		t.Fatalf("assign: %d %s", code, assignBody)
 	}
+	_, nodesHTML := getBody(t, client, ts.URL+"/nodes")
+	if !strings.Contains(nodesHTML, "/nodes/"+node.ID+"/users") || !strings.Contains(nodesHTML, "/nodes/"+node.ID+"/logs") {
+		t.Fatalf("node actions missing: %s", nodesHTML)
+	}
+	_, nodeUsersHTML := getBody(t, client, ts.URL+"/nodes/"+node.ID+"/users")
+	if !strings.Contains(nodeUsersHTML, user.ID) || !strings.Contains(nodeUsersHTML, "Assigned users") {
+		t.Fatalf("node users page: %s", nodeUsersHTML)
+	}
 	assignment, err := s.store.GetAssignment(t.Context(), node.ID, user.ID)
 	if err != nil {
 		t.Fatal(err)
@@ -211,6 +220,7 @@ func TestPanelFlow(t *testing.T) {
 		Stats: protocol.Stats{
 			Users: []protocol.UserStats{{ID: user.ID, Tx: 100, Rx: 200}},
 		},
+		Logs: []protocol.LogEntry{{Time: time.Now().Unix(), Source: "server", Level: "ERROR", Message: "test node error"}},
 	}
 	reportBody, _ := json.Marshal(report)
 	req, _ = http.NewRequest(http.MethodPost, ts.URL+"/api/v1/agent/report", bytes.NewReader(reportBody))
@@ -230,6 +240,10 @@ func TestPanelFlow(t *testing.T) {
 	}
 	if assignment.TotalTx != 100 || assignment.TotalRx != 200 {
 		t.Fatalf("traffic not applied: %+v", assignment)
+	}
+	_, logsHTML := getBody(t, client, ts.URL+"/nodes/"+node.ID+"/logs?level=ERROR")
+	if !strings.Contains(logsHTML, "test node error") || !strings.Contains(logsHTML, "ERROR") {
+		t.Fatalf("node logs page: %s", logsHTML)
 	}
 }
 

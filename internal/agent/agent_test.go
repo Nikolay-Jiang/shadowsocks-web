@@ -172,3 +172,39 @@ func TestApplyWritesValidConfig(t *testing.T) {
 		t.Fatalf("unexpected config: %+v", got)
 	}
 }
+
+func TestReportIncludesAndDropsLogs(t *testing.T) {
+	var got protocol.AgentReport
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/agent/report" {
+			http.NotFound(w, r)
+			return
+		}
+		if err := json.NewDecoder(r.Body).Decode(&got); err != nil {
+			t.Fatal(err)
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer server.Close()
+
+	cfg := Config{PanelURL: server.URL, SyncWaitSeconds: 1}
+	client, err := NewPanelClient(cfg, "token")
+	if err != nil {
+		t.Fatal(err)
+	}
+	logs := NewLogBuffer(10)
+	logs.Append("server", "ERROR", "node failed")
+	a := &Agent{
+		cfg:    cfg,
+		client: client,
+		sup:    NewSupervisor("/bin/true", "/tmp/unused"),
+		logs:   logs,
+	}
+	a.report(context.Background(), 3, "applied", "")
+	if len(got.Logs) != 1 || got.Logs[0].Message != "node failed" {
+		t.Fatalf("report logs = %+v", got.Logs)
+	}
+	if left := logs.Snapshot(10); len(left) != 0 {
+		t.Fatalf("logs were not dropped after success: %+v", left)
+	}
+}

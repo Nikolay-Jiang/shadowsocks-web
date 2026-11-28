@@ -1,0 +1,41 @@
+{{define "content"}}
+<h1>{{.Data.Node.Name}} logs</h1>
+<p class="muted">
+  <a href="/nodes/{{.Data.Node.ID}}">Node settings</a> ·
+  <a href="/nodes/{{.Data.Node.ID}}/users">Node users</a> ·
+  {{date .Data.Node.LastSeen}}
+</p>
+
+<div class="card">
+  <div class="row" style="justify-content:space-between">
+    <h2>Latest entries</h2>
+    <form method="get" action="/nodes/{{.Data.Node.ID}}/logs" class="row">
+      <select name="level" style="width:auto">
+        <option value="" {{if eq .Data.Level ""}}selected{{end}}>All levels</option>
+        <option value="ERROR" {{if eq .Data.Level "ERROR"}}selected{{end}}>ERROR</option>
+        <option value="WARN" {{if eq .Data.Level "WARN"}}selected{{end}}>WARN</option>
+        <option value="INFO" {{if eq .Data.Level "INFO"}}selected{{end}}>INFO</option>
+        <option value="DEBUG" {{if eq .Data.Level "DEBUG"}}selected{{end}}>DEBUG</option>
+      </select>
+      <button type="submit">Filter</button>
+      <a href="/nodes/{{.Data.Node.ID}}/logs" class="muted">Refresh</a>
+    </form>
+  </div>
+  <p class="muted">Newest first, up to 200 entries. History is retained for 7 days or 5000 lines per node.</p>
+  {{if .Data.Logs}}
+  <table>
+    <thead><tr><th>Time</th><th>Level</th><th>Source</th><th>Message</th></tr></thead>
+    <tbody>
+    {{range .Data.Logs}}
+      <tr>
+        <td style="white-space:nowrap">{{date .Time}}</td>
+        <td><span class="{{levelClass .Level}}">{{.Level}}</span></td>
+        <td>{{.Source}}</td>
+        <td class="logmsg">{{.Message}}</td>
+      </tr>
+    {{end}}
+    </tbody>
+  </table>
+  {{else}}<p class="muted">No log entries yet.</p>{{end}}
+</div>
+{{end}}

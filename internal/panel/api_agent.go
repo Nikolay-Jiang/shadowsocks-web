@@ -124,5 +124,9 @@ func (s *Server) agentReport(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, protocol.ErrorResponse{Error: "store stats"})
 		return
 	}
+	if err := s.store.AppendLogs(r.Context(), node.ID, report.Logs); err != nil {
+		writeJSON(w, http.StatusInternalServerError, protocol.ErrorResponse{Error: "store logs"})
+		return
+	}
 	w.WriteHeader(http.StatusNoContent)
 }

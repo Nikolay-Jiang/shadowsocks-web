@@ -94,6 +94,7 @@ func (s *Server) loadTemplates() error {
 			"date":        formatDate,
 			"dateInput":   dateInput,
 			"statusClass": statusClass,
+			"levelClass":  levelClass,
 			"short":       shortID,
 		}).ParseFS(templateFS, "templates/layout.html", name)
 		if err != nil {
@@ -122,6 +123,10 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /nodes/{id}", s.auth(s.nodeUpdate))
 	s.mux.HandleFunc("POST /nodes/{id}/delete", s.auth(s.nodeDelete))
 	s.mux.HandleFunc("POST /nodes/{id}/token", s.auth(s.nodeRotateToken))
+	s.mux.HandleFunc("GET /nodes/{id}/users", s.auth(s.nodeUsersPage))
+	s.mux.HandleFunc("POST /nodes/{id}/assign", s.auth(s.nodeAssignUser))
+	s.mux.HandleFunc("POST /nodes/{id}/unassign", s.auth(s.nodeUnassignUser))
+	s.mux.HandleFunc("GET /nodes/{id}/logs", s.auth(s.nodeLogsPage))
 	s.mux.HandleFunc("GET /users", s.auth(s.usersPage))
 	s.mux.HandleFunc("POST /users", s.auth(s.userCreate))
 	s.mux.HandleFunc("GET /users/{id}", s.auth(s.userPage))

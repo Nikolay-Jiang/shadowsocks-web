@@ -1,0 +1,49 @@
+{{define "content"}}
+<h1>{{.Data.Node.Name}} users</h1>
+<p class="muted">
+  <a href="/nodes/{{.Data.Node.ID}}">Node settings</a> ·
+  <a href="/nodes/{{.Data.Node.ID}}/logs">Node logs</a>
+</p>
+
+<div class="card">
+  <h2>Assigned users</h2>
+  {{if .Data.Assignments}}
+  <table>
+    <thead><tr><th>User</th><th>Enabled</th><th>TX</th><th>RX</th><th>Last seen</th><th></th></tr></thead>
+    <tbody>
+    {{range .Data.Assignments}}
+      <tr>
+        <td><a href="/users/{{.User.ID}}">{{.User.ID}}</a><br><span class="muted">{{.User.DisplayName}}</span></td>
+        <td>{{if .User.Enabled}}<span class="ok">yes</span>{{else}}<span class="muted">no</span>{{end}}</td>
+        <td>{{bytes .Assignment.TotalTx}}</td>
+        <td>{{bytes .Assignment.TotalRx}}</td>
+        <td>{{date .Assignment.LastSeen}}</td>
+        <td>
+          <form method="post" action="/nodes/{{$.Data.Node.ID}}/unassign" onsubmit="return confirm('Remove this user from the node?')">
+            <input type="hidden" name="csrf" value="{{$.CSRF}}">
+            <input type="hidden" name="user_id" value="{{.User.ID}}">
+            <button class="danger" type="submit">Remove</button>
+          </form>
+        </td>
+      </tr>
+    {{end}}
+    </tbody>
+  </table>
+  {{else}}<p class="muted">No users are assigned to this node.</p>{{end}}
+</div>
+
+<div class="card">
+  <h2>Assign a user</h2>
+  {{if .Data.AvailableUsers}}
+  <form method="post" action="/nodes/{{.Data.Node.ID}}/assign" class="row">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <select name="user_id" style="max-width:320px">
+      {{range .Data.AvailableUsers}}<option value="{{.ID}}">{{.ID}} — {{.DisplayName}}</option>{{end}}
+    </select>
+    <input name="psk" placeholder="PSK (blank: user default or generate)" autocomplete="off" style="max-width:300px">
+    <button type="submit">Assign user</button>
+  </form>
+  <p class="muted">Only users not already assigned to this node are listed. A supplied PSK must match the node method and be unique within this node.</p>
+  {{else}}<p class="muted">All users are assigned to this node, or no users exist yet. <a href="/users">Create a user</a>.</p>{{end}}
+</div>
+{{end}}

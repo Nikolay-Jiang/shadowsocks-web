@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/exec"
@@ -24,15 +25,18 @@ const (
 
 // Agent reconciles one node with the panel.
 type Agent struct {
-	cfg    Config
-	client *PanelClient
-	sup    *Supervisor
+	cfg      Config
+	client   *PanelClient
+	sup      *Supervisor
+	logs     *LogBuffer
+	agentLog *logLineWriter
 
-	mu      sync.Mutex
-	state   state
-	version string
-	status  string
-	lastErr string
+	mu       sync.Mutex
+	state    state
+	version  string
+	status   string
+	lastErr  string
+	reportMu sync.Mutex
 }
 
 func New(cfg Config) (*Agent, error) {
@@ -56,16 +60,24 @@ func New(cfg Config) (*Agent, error) {
 	if err != nil {
 		return nil, err
 	}
+	logs := NewLogBuffer(logBufferEntries)
 	return &Agent{
-		cfg:    cfg,
-		client: client,
-		sup:    NewSupervisor(cfg.ServerBinary, cfg.ServerConfig),
-		state:  st,
+		cfg:      cfg,
+		client:   client,
+		sup:      NewSupervisor(cfg.ServerBinary, cfg.ServerConfig, newLogLineWriter("server", logs)),
+		logs:     logs,
+		agentLog: newLogLineWriter("agent", logs),
+		state:    st,
 	}, nil
 }
 
 func (a *Agent) Run(ctx context.Context) error {
 	defer a.sup.Stop()
+	if a.agentLog != nil {
+		previous := log.Writer()
+		log.SetOutput(io.MultiWriter(os.Stderr, a.agentLog))
+		defer log.SetOutput(previous)
+	}
 	a.version = serverVersion(a.cfg.ServerBinary)
 	if _, err := os.Stat(a.cfg.ServerConfig); err == nil {
 		if err := a.sup.Start(); err != nil {
@@ -285,6 +297,8 @@ func (a *Agent) setStatus(status, message string) {
 }
 
 func (a *Agent) report(ctx context.Context, revision int64, status, message string) {
+	a.reportMu.Lock()
+	defer a.reportMu.Unlock()
 	report := protocol.AgentReport{
 		Revision: revision,
 		Status:   status,
@@ -298,10 +312,21 @@ func (a *Agent) report(ctx context.Context, revision int64, status, message stri
 	if stats, err := a.collectStats(); err == nil {
 		report.Stats = stats
 	}
+	var batch []protocol.LogEntry
+	if a.logs != nil {
+		batch = a.logs.Snapshot(logBatchMax)
+		report.Logs = batch
+	}
 	reportCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
-	if err := a.client.Report(reportCtx, report); err != nil && ctx.Err() == nil {
-		log.Printf("report: %v", err)
+	if err := a.client.Report(reportCtx, report); err != nil {
+		if ctx.Err() == nil {
+			log.Printf("report: %v", err)
+		}
+		return
+	}
+	if a.logs != nil && len(batch) != 0 {
+		a.logs.Drop(len(batch))
 	}
 }
 

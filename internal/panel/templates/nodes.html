@@ -40,15 +40,15 @@
   <h2>Managed nodes</h2>
   {{if .Data.Nodes}}
   <table>
-    <thead><tr><th>Name</th><th>Address</th><th>Status</th><th>Users</th><th>Revision</th></tr></thead>
+    <thead><tr><th>Name</th><th>Address</th><th>Status</th><th>Revision</th><th>Actions</th></tr></thead>
     <tbody>
     {{range .Data.Nodes}}
       <tr>
         <td><a href="/nodes/{{.ID}}">{{.Name}}</a></td>
         <td><code>{{.Address}}:{{.Port}}</code><br><span class="muted">{{.Method}}</span></td>
         <td><span class="{{statusClass .Status}}">{{.Status}}</span></td>
-        <td><a href="/users">manage</a></td>
         <td>{{.Revision}}</td>
+        <td><a href="/nodes/{{.ID}}/users">Users</a> · <a href="/nodes/{{.ID}}/logs">Logs</a></td>
       </tr>
     {{end}}
     </tbody>

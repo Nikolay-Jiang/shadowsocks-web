@@ -13,6 +13,7 @@ import (
 
 	"github.com/Nikolay-Jiang/shadowsocks-web/internal/clienturi"
 	"github.com/Nikolay-Jiang/shadowsocks-web/internal/nodeconfig"
+	"github.com/Nikolay-Jiang/shadowsocks-web/internal/protocol"
 )
 
 type dashboardView struct {
@@ -50,6 +51,23 @@ type userView struct {
 	TotalTx       uint64
 	TotalRx       uint64
 	HasDefaultPSK bool
+}
+
+type nodeUserRow struct {
+	User       User
+	Assignment Assignment
+}
+
+type nodeUsersView struct {
+	Node           Node
+	Assignments    []nodeUserRow
+	AvailableUsers []User
+}
+
+type nodeLogsView struct {
+	Node  Node
+	Logs  []protocol.LogEntry
+	Level string
 }
 
 func (s *Server) dashboard(w http.ResponseWriter, r *http.Request) {
@@ -127,6 +145,99 @@ func (s *Server) nodePage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.showNode(w, r, node, "")
+}
+
+func (s *Server) nodeUsersPage(w http.ResponseWriter, r *http.Request) {
+	node, err := s.store.GetNode(r.Context(), r.PathValue("id"))
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	assignments, err := s.store.ListAssignmentsForNode(r.Context(), node.ID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	users, err := s.store.ListUsers(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	byID := make(map[string]User, len(users))
+	for _, u := range users {
+		byID[u.ID] = u
+	}
+	assigned := make(map[string]bool, len(assignments))
+	var rows []nodeUserRow
+	for _, a := range assignments {
+		assigned[a.UserID] = true
+		if u, ok := byID[a.UserID]; ok {
+			rows = append(rows, nodeUserRow{User: u, Assignment: a})
+		}
+	}
+	sort.Slice(rows, func(i, j int) bool { return rows[i].User.ID < rows[j].User.ID })
+	var available []User
+	for _, u := range users {
+		if !assigned[u.ID] {
+			available = append(available, u)
+		}
+	}
+	sort.Slice(available, func(i, j int) bool { return available[i].ID < available[j].ID })
+	s.pageFor(w, r, "node_users", pageData{Title: node.Name + " users", Data: nodeUsersView{
+		Node: node, Assignments: rows, AvailableUsers: available,
+	}})
+}
+
+func (s *Server) nodeAssignUser(w http.ResponseWriter, r *http.Request) {
+	_ = r.ParseForm()
+	node, err := s.store.GetNode(r.Context(), r.PathValue("id"))
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	user, err := s.store.GetUser(r.Context(), r.FormValue("user_id"))
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	if err := s.assignUserToNode(r.Context(), node, user, strings.TrimSpace(r.FormValue("psk"))); err != nil {
+		s.pageFor(w, r, "node_users", pageData{Title: node.Name + " users", Error: fmt.Sprintf("assign: %v", err), Data: nodeUsersView{Node: node}})
+		return
+	}
+	s.audit(r, sessionFrom(r), "assign", "node", node.ID, user.ID)
+	redirect(w, r, "/nodes/"+node.ID+"/users")
+}
+
+func (s *Server) nodeUnassignUser(w http.ResponseWriter, r *http.Request) {
+	_ = r.ParseForm()
+	node, err := s.store.GetNode(r.Context(), r.PathValue("id"))
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	userID := r.FormValue("user_id")
+	if err := s.store.RemoveAssignment(r.Context(), node.ID, userID); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	_ = s.store.IncrementNodeRevision(r.Context(), node.ID)
+	s.audit(r, sessionFrom(r), "unassign", "node", node.ID, userID)
+	redirect(w, r, "/nodes/"+node.ID+"/users")
+}
+
+func (s *Server) nodeLogsPage(w http.ResponseWriter, r *http.Request) {
+	node, err := s.store.GetNode(r.Context(), r.PathValue("id"))
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	level := strings.ToUpper(strings.TrimSpace(r.URL.Query().Get("level")))
+	logs, err := s.store.ListNodeLogs(r.Context(), node.ID, level, 200)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	s.pageFor(w, r, "node_logs", pageData{Title: node.Name + " logs", Data: nodeLogsView{Node: node, Logs: logs, Level: level}})
 }
 
 func (s *Server) nodeFormError(w http.ResponseWriter, r *http.Request, title string, err error) {
@@ -359,45 +470,43 @@ func (s *Server) userAssign(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	psk := strings.TrimSpace(r.FormValue("psk"))
+	if err := s.assignUserToNode(r.Context(), node, user, strings.TrimSpace(r.FormValue("psk"))); err != nil {
+		s.renderUser(w, r, user, "", fmt.Sprintf("assign: %v", err))
+		return
+	}
+	s.audit(r, sessionFrom(r), "assign", "user", userID, nodeID)
+	redirect(w, r, "/users/"+userID)
+}
+
+func (s *Server) assignUserToNode(ctx context.Context, node Node, user User, psk string) error {
 	if psk == "" {
-		psk, err = s.store.UserDefaultPSK(r.Context(), userID)
+		var err error
+		psk, err = s.store.UserDefaultPSK(ctx, user.ID)
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
-			s.renderUser(w, r, user, "", fmt.Sprintf("assign: %v", err))
-			return
+			return err
 		}
 	}
 	if psk != "" {
 		if err := validateAssignmentPSK(node, psk); err != nil {
-			s.renderUser(w, r, user, "", fmt.Sprintf("assign: %v", err))
-			return
+			return err
 		}
-		if err := s.store.AssignUser(r.Context(), nodeID, userID, psk); err != nil {
-			s.renderUser(w, r, user, "", fmt.Sprintf("assign: %v", err))
-			return
+		if err := s.store.AssignUser(ctx, node.ID, user.ID, psk); err != nil {
+			return err
 		}
-		_ = s.store.IncrementNodeRevision(r.Context(), nodeID)
-		s.audit(r, sessionFrom(r), "assign", "user", userID, nodeID)
-		redirect(w, r, "/users/"+userID)
-		return
+		return s.store.IncrementNodeRevision(ctx, node.ID)
 	}
-
 	var lastErr error
 	for i := 0; i < 5; i++ {
-		psk, err := nodeconfig.GeneratePSK(node.Method)
+		generated, err := nodeconfig.GeneratePSK(node.Method)
 		if err != nil {
-			lastErr = err
-			break
+			return err
 		}
-		lastErr = s.store.AssignUser(r.Context(), nodeID, userID, psk)
+		lastErr = s.store.AssignUser(ctx, node.ID, user.ID, generated)
 		if lastErr == nil {
-			_ = s.store.IncrementNodeRevision(r.Context(), nodeID)
-			s.audit(r, sessionFrom(r), "assign", "user", userID, nodeID)
-			redirect(w, r, "/users/"+userID)
-			return
+			return s.store.IncrementNodeRevision(ctx, node.ID)
 		}
 	}
-	s.renderUser(w, r, user, "", fmt.Sprintf("assign: %v", lastErr))
+	return lastErr
 }
 
 func validateAssignmentPSK(node Node, psk string) error {

@@ -2,6 +2,7 @@ package agent
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/exec"
@@ -15,14 +16,19 @@ import (
 type Supervisor struct {
 	binary string
 	config string
+	sink   io.Writer
 
 	mu   sync.Mutex
 	cmd  *exec.Cmd
 	done chan struct{}
 }
 
-func NewSupervisor(binary, config string) *Supervisor {
-	return &Supervisor{binary: binary, config: config}
+func NewSupervisor(binary, config string, sinks ...io.Writer) *Supervisor {
+	var sink io.Writer
+	if len(sinks) != 0 {
+		sink = sinks[0]
+	}
+	return &Supervisor{binary: binary, config: config, sink: sink}
 }
 
 func (s *Supervisor) Start() error {
@@ -32,8 +38,13 @@ func (s *Supervisor) Start() error {
 		return nil
 	}
 	cmd := exec.Command(s.binary, "-c", s.config)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	if s.sink != nil {
+		cmd.Stdout = io.MultiWriter(os.Stdout, s.sink)
+		cmd.Stderr = io.MultiWriter(os.Stderr, s.sink)
+	} else {
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+	}
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	if err := cmd.Start(); err != nil {
 		s.mu.Unlock()

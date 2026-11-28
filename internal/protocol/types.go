@@ -63,6 +63,15 @@ type AgentReport struct {
 	Error    string       `json:"error,omitempty"`
 	Server   ServerStatus `json:"server"`
 	Stats    Stats        `json:"stats"`
+	Logs     []LogEntry   `json:"logs,omitempty"`
+}
+
+// LogEntry is one line captured from ss-server or ss-agent.
+type LogEntry struct {
+	Time    int64  `json:"ts"`
+	Source  string `json:"source"` // server / agent
+	Level   string `json:"level"`  // ERROR / WARN / INFO / DEBUG
+	Message string `json:"message"`
 }
 
 // ServerStatus is the agent's view of the supervised ss-server.

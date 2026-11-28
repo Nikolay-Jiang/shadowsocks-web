@@ -75,6 +75,14 @@ token once; store it in the agent config.
 The agent supervises `ss-server`; systemd should run `ss-agent`, not
 `ss-server`. See `deploy/systemd/ss-agent.service`.
 
+## Node users and logs
+
+The node list links to `/nodes/<id>/users`, which shows only users assigned to
+that node and lets you assign an existing user with an optional PSK. Use
+`/nodes/<id>/logs` to inspect recent `ss-server` and `ss-agent` output. The
+agent keeps a bounded local buffer (2000 lines) and uploads it with its next
+report; the panel retains 7 days or 5000 lines per node.
+
 ## Reload behavior
 
 - User additions, removals and PSK rotations use `reload` on the local socket;

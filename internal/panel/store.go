@@ -109,6 +109,16 @@ CREATE TABLE IF NOT EXISTS audit_log (
 CREATE TABLE IF NOT EXISTS user_seq (
     id INTEGER PRIMARY KEY AUTOINCREMENT
 );
+
+CREATE TABLE IF NOT EXISTS node_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    node_id TEXT NOT NULL REFERENCES nodes(id) ON DELETE CASCADE,
+    ts INTEGER NOT NULL,
+    source TEXT NOT NULL,
+    level TEXT NOT NULL,
+    message TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS node_logs_node_id_id ON node_logs(node_id, id);
 `
 
 func OpenStore(path string, crypt *Crypt) (*Store, error) {

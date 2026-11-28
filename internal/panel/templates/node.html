@@ -65,11 +65,12 @@
   <h2>Assignments</h2>
   {{if .Data.Assignments}}
   <table>
-    <thead><tr><th>User</th><th>Enabled</th><th>TX</th><th>RX</th><th>Last seen</th></tr></thead>
+    <thead><tr><th>User</th><th>Name</th><th>Enabled</th><th>TX</th><th>RX</th><th>Last seen</th></tr></thead>
     <tbody>
     {{range .Data.Assignments}}
       <tr>
         <td><a href="/users/{{.UserID}}">{{.UserID}}</a></td>
+        <td>{{index $.Data.UserNames .UserID}}</td>
         <td>{{if .Enabled}}yes{{else}}no{{end}}</td>
         <td>{{bytes .TotalTx}}</td>
         <td>{{bytes .TotalRx}}</td>

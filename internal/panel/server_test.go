@@ -186,6 +186,10 @@ func TestPanelFlow(t *testing.T) {
 	if !strings.Contains(nodesHTML, "/nodes/"+node.ID+"/users") || !strings.Contains(nodesHTML, "/nodes/"+node.ID+"/logs") {
 		t.Fatalf("node actions missing: %s", nodesHTML)
 	}
+	_, nodePageHTML := getBody(t, client, ts.URL+"/nodes/"+node.ID)
+	if !strings.Contains(nodePageHTML, "alice") {
+		t.Fatalf("node assignment name missing: %s", nodePageHTML)
+	}
 	_, nodeUsersHTML := getBody(t, client, ts.URL+"/nodes/"+node.ID+"/users")
 	if !strings.Contains(nodeUsersHTML, user.ID) || !strings.Contains(nodeUsersHTML, "Assigned users") {
 		t.Fatalf("node users page: %s", nodeUsersHTML)

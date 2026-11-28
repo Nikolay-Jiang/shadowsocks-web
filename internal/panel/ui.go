@@ -31,6 +31,7 @@ type nodeView struct {
 	Node        Node
 	Assignments []Assignment
 	Users       []User
+	UserNames   map[string]string
 	Token       string
 }
 
@@ -255,7 +256,13 @@ func (s *Server) showNode(w http.ResponseWriter, r *http.Request, node Node, tok
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	s.pageFor(w, r, "node", pageData{Title: node.Name, Data: nodeView{Node: node, Assignments: assignments, Users: users, Token: token}})
+	userNames := make(map[string]string, len(users))
+	for _, u := range users {
+		userNames[u.ID] = u.DisplayName
+	}
+	s.pageFor(w, r, "node", pageData{Title: node.Name, Data: nodeView{
+		Node: node, Assignments: assignments, Users: users, UserNames: userNames, Token: token,
+	}})
 }
 
 func (s *Server) nodeUpdate(w http.ResponseWriter, r *http.Request) {

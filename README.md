@@ -53,6 +53,14 @@ Without `SS_PANEL_MASTER_KEY`, the panel creates `data/master.key` with mode
 Open `/setup` on first run, then create a node. The node page shows the agent
 token once; store it in the agent config.
 
+## Agent release
+
+Download `ss-agent_<version>_linux_amd64.tar.gz` from
+[Releases](https://github.com/Nikolay-Jiang/shadowsocks-web/releases), then
+follow the install steps in the archive (`README.md` / `agent-install.md`).
+The release contains the static `ss-agent`, its systemd unit and an example
+config.
+
 ## Run an agent
 
 ```json

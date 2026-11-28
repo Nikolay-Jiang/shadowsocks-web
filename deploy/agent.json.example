@@ -1,0 +1,11 @@
+{
+  "panel_url": "https://panel.example.com",
+  "enrollment_token": "TOKEN_FROM_PANEL_NODE_PAGE",
+  "node_name": "hk-1",
+  "data_dir": "/var/lib/shadowsocks-c/agent",
+  "server_binary": "/usr/local/bin/ss-server",
+  "server_config": "/etc/shadowsocks-c/config.json",
+  "control_socket": "/run/shadowsocks-c/control.sock",
+  "apply_mode": "supervisor",
+  "sync_wait_seconds": 25
+}

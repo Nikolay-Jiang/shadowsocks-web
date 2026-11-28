@@ -1,10 +1,10 @@
 // Package protocol defines the wire types shared by ss-panel and ss-agent.
 package protocol
 
-const (
-	APIVersion = "v1"
-	Version    = "0.1.0"
-)
+const APIVersion = "v1"
+
+// Version is a variable so release builds can set it with -ldflags -X.
+var Version = "0.1.0"
 
 // Apply mode tells the agent how large the change is.
 const (
